@@ -1,0 +1,5 @@
+-- New log entry --
+09-03-2023 09:49:39 >> Version of the tool: 1.0
+09-03-2023 09:49:39 >> Version of Polyspace Access: R2022b
+09-03-2023 09:49:39 >> Memory: 7.8Gi
+-- End of entry --
