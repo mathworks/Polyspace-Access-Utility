@@ -30,6 +30,8 @@ Polyspace Access Utility is a bash script for dealing with basic operations when
 - restart
 - debug
 
+The script is compatible with Polyspace Access R2022a, R2022b and R2023a
+
 # Installation
 
 The tool should be installed in a subfolder of the Polyspace Access installation.  

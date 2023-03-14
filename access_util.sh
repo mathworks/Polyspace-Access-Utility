@@ -1,6 +1,26 @@
 #!/bin/bash
 
-# (c) MathWorks Inc. 2023
+# Copyright (c) 2023 The MathWorks, Inc.
+# All Rights Reserved.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 
 ##########
 #  Init  #
@@ -15,17 +35,17 @@ fi
 
 docker version &>/dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "Error: Docker commands cannot be launched, please launch this command in sudo (admin) mode: sudo ./access_debug.sh"
-	exit
+	echo "Error: Docker commands cannot be launched, please launch this command in sudo (admin) mode: sudo ./access_util.sh"
+	exit 1
 fi
 
 if [ ! -f ../settings.json ]; then
-	echo "Error: settings.json missing, this script should be executed in the installation folder of the Polyspace Access Cluster Admin Agent"
+	echo "Error: settings.json cannot be found, this tool should be executed in a subfolder of the Polyspace Access installation folder"
 	exit 1
 fi
 
 if [ ! -f ../VERSION ]; then
-	echo "Error: file VERSION missing, cannot continue"
+	echo "Error: file VERSION cannot be found, cannot continue"
 	exit 1
 fi
 
@@ -35,7 +55,7 @@ if ! command -v whiptail &>/dev/null; then
 	echo "Use"
 	echo " sudo apt install whiptail"
 	echo "to install it"
-	exit
+	exit 1
 fi
 
 version=$(awk '{print $1}' <../VERSION)
@@ -57,7 +77,6 @@ tool_version="1.0"
 
 storageDir=$(grep '"etlStorageDir"' ../settings.json | awk -F ':' '{print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
 databaseDir=$(grep '"dbVolume"' ../settings.json | awk -F ':' 'FNR==1 {print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
-
 mem_total_bytes=$(awk '/^Mem/ {printf $2}' <(free))
 mem_total=$(awk '/^Mem/ {printf $2}' <(free -h))
 
@@ -90,7 +109,7 @@ function backup {
 				log "Creating the backup file"
 				echo -e "XXX\n33\nCreating the backup file... \nXXX"
 				# docker exec $db_main pg_dumpall -U postgres | gzip > $backup_file
-				docker exec $db_main pg_dumpall -U postgres >$backup_file
+				docker exec $db_main pg_dumpall -U postgres >"$backup_file"
 				status_code=$?
 				log "status: $status_code"
 				global_status_code=$((global_status_code + status_code))
@@ -131,7 +150,7 @@ function restore_backup {
 
 		if (whiptail --title "Confirm backup location" --yesno --defaultno "The database will be backed up from $backup_file. Proceed ?" 8 78); then
 
-			if [ -e $backup_file ]; then
+			if [ -e "$backup_file" ]; then
 				{
 					log "Restore backup"
 					log "Backup file is $backup_file"
@@ -245,13 +264,13 @@ function full_vacuum {
 			sleep 1
 
 		} > >(whiptail --title "Full vacuum" --gauge "Please wait" 6 50 0)
-	log "Vacuum complete"
-	log "Final status: $global_status_code"
-	if [ $global_status_code -eq 0 ]; then
-		whiptail --msgbox "Vacuum complete" 10 30
-	else
-		whiptail --msgbox "Error occured during vacuum. See the file log.txt" 10 30
-	fi
+		log "Vacuum complete"
+		log "Final status: $global_status_code"
+		if [ $global_status_code -eq 0 ]; then
+			whiptail --msgbox "Vacuum complete" 10 30
+		else
+			whiptail --msgbox "Error occured during vacuum. See the file log.txt" 10 30
+		fi
 
 	fi
 
@@ -316,54 +335,85 @@ Disk space on / :
 
 }
 
-
 function restart_containers {
 	# give a warning because some services will be shutdown
 	if whiptail --yesno --defaultno "Warning! The services (upload, connections...) will be shut down during restart!\nAre you sure you want to continue?" 15 50; then
-		{ 
+		{
 
-		log "Restarting containers"
+			log "Restarting containers"
 			echo -e "XXX\n0\nStopping the containers... \nXXX"
-docker stop gateway \
-	polyspace-access-web-server-0-main\
-	polyspace-access-etl-0-main\
-	polyspace-access-db-0-main\
-	polyspace-access-download-0-main\
-	issuetracker-server-0-main\
-	issuetracker-ui-0-main\
-	usermanager-server-0-main\
-	usermanager-ui-0-main\
-	usermanager-db-0-main\
-	polyspace-access\
-	issuetracker\
-	usermanager > /dev/null 2>&1
-	echo -e "XXX\n50\nStopping the containers... Done.\nXXX"
-	sleep 1
+			if [[ $version < "R2022a" ]]; then
+				docker stop gateway \
+					polyspace-access-web-server-main \
+					polyspace-access-etl-main \
+					polyspace-access-db-main \
+					polyspace-access-download-main \
+					issuetracker-server-main \
+					issuetracker-ui-main \
+					usermanager-server-main \
+					usermanager-ui-main \
+					usermanager-db-main \
+					polyspace-access \
+					issuetracker \
+					usermanager >/dev/null 2>&1
+			else
+				docker stop gateway \
+					polyspace-access-web-server-0-main \
+					polyspace-access-etl-0-main \
+					polyspace-access-db-0-main \
+					polyspace-access-download-0-main \
+					issuetracker-server-0-main \
+					issuetracker-ui-0-main \
+					usermanager-server-0-main \
+					usermanager-ui-0-main \
+					usermanager-db-0-main \
+					polyspace-access \
+					issuetracker \
+					usermanager >/dev/null 2>&1
+			fi
 
-	echo -e "XXX\n50\nStarting the containers... \nXXX"
-docker start usermanager \
-	issuetracker\
-	polyspace-access\
-	usermanager-db-0-main\
-	usermanager-ui-0-main\
-	usermanager-server-0-main\
-	issuetracker-ui-0-main\
-	issuetracker-server-0-main\
-	polyspace-access-download-0-main\
-	polyspace-access-db-0-main\
-	polyspace-access-etl-0-main\
-	polyspace-access-web-server-0-main\
-	gateway > /dev/null 2>&1
-	echo -e "XXX\n100\nStarting the containers... Done.\nXXX"
-	sleep 1
-} > >(whiptail --title "Restarting..." --gauge "Please wait" 6 50 0)
+			echo -e "XXX\n50\nStopping the containers... Done.\nXXX"
+			sleep 1
 
-whiptail --msgbox "Restart complete" 10 30
+			echo -e "XXX\n50\nStarting the containers... \nXXX"
+			if [[ $version < "R2022a" ]]; then
+				docker start usermanager \
+					issuetracker \
+					polyspace-access \
+					usermanager-db-main \
+					usermanager-ui-main \
+					usermanager-server-main \
+					issuetracker-ui-main \
+					issuetracker-server-main \
+					polyspace-access-download-main \
+					polyspace-access-db-main \
+					polyspace-access-etl-main \
+					polyspace-access-web-server-main \
+					gateway >/dev/null 2>&1
+			else
+				docker start usermanager \
+					issuetracker \
+					polyspace-access \
+					usermanager-db-0-main \
+					usermanager-ui-0-main \
+					usermanager-server-0-main \
+					issuetracker-ui-0-main \
+					issuetracker-server-0-main \
+					polyspace-access-download-0-main polyspace-access-db-0-main \
+					polyspace-access-etl-0-main \
+					polyspace-access-web-server-0-main \
+					gateway >/dev/null 2>&1
+			fi
 
-log "Done"
+			echo -e "XXX\n100\nStarting the containers... Done.\nXXX"
+			sleep 1
+		} > >(whiptail --title "Restarting..." --gauge "Please wait" 6 50 0)
+
+		whiptail --msgbox "Restart complete" 10 30
+
+		log "Done"
 	fi
 }
-
 
 function create_debug_info {
 
@@ -397,7 +447,7 @@ log "Version of the tool: $tool_version"
 log "Version of Polyspace Access: $version"
 log "Memory: $mem_total"
 
-if [ $mem_total_bytes -lt 32505856 ]; then
+if [ "$mem_total_bytes" -lt 32505856 ]; then
 	whiptail --title "Warning!" --msgbox "The server does not meet the RAM requirements (32Gb of RAM).\nProblems can occur during upload/downloads.\nClick Ok to continue." 10 50
 fi
 
@@ -439,7 +489,8 @@ while [ 1 ]; do
 		show_info
 		;;
 
-	7) create_debug_info
+	7)
+		create_debug_info
 		;;
 
 	8)
