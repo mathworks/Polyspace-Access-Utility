@@ -49,6 +49,11 @@ In the menu, use up and down cursor keys to chose the command to be launched the
 A log file named log.txt is written in case of a problem.
 
 
+# Warning
+
+The tool relies on commands (including SQL requests) that are not maintained and that may change in further releases of Polyspace Access.
+
+
 # License
 
 The license for Polyspace Access Utility is available in the LICENSE.TXT file in this GitHub repository.
