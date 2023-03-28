@@ -49,7 +49,7 @@ if [ ! -f ../VERSION ]; then
 	exit 1
 fi
 
-# verifier que whiptail est installé
+# check that whiptail is installed
 if ! command -v whiptail &>/dev/null; then
 	echo "whiptail is required to run the tool but is not installed."
 	echo "Use"
@@ -57,6 +57,11 @@ if ! command -v whiptail &>/dev/null; then
 	echo "to install it"
 	exit 1
 fi
+
+# variable definitions
+
+logfile="log.txt"
+tool_version="1.0"
 
 version=$(awk '{print $1}' <../VERSION)
 if [[ $version < "R2022a" ]]; then
@@ -70,11 +75,7 @@ else
 fi
 sql="docker exec -i $db_main psql -a -b -U postgres prs_data"
 
-logfile="log.txt"
-tool_version="1.0"
-
 # get some variables
-
 storageDir=$(grep '"etlStorageDir"' ../settings.json | awk -F ':' '{print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
 databaseDir=$(grep '"dbVolume"' ../settings.json | awk -F ':' 'FNR==1 {print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
 mem_total_bytes=$(awk '/^Mem/ {printf $2}' <(free))
@@ -330,7 +331,6 @@ Disk space on / :
  Use: $fs_use"
 	)
 
-	# height width
 	whiptail --title "Status" --msgbox "$text" 25 50
 
 }
@@ -500,4 +500,3 @@ while [ 1 ]; do
 	esac
 done
 
-exit
