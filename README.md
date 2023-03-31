@@ -12,6 +12,12 @@ The script is compatible with Polyspace Access R2022a, R2022b and R2023a
 # Installation
 
 The tool should be installed in a subfolder of the Polyspace Access installation.  
+Before using the tool, you may have to set execution rights to the two bash scripts:
+
+```
+chmod u+x access_util.sh access_debug.sh 
+```
+
 Since it is a simple bash script, there is else nothing to install. It is using the tool whiptail, which is installed by default on most Linux distributions.
 If whiptail is not installed, you can install it like this:
 
