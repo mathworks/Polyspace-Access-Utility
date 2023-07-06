@@ -1,7 +1,7 @@
 # Polyspace Access Utility
 
 Polyspace Access Utility is a bash script for dealing with basic operations when using Polyspace® Access&trade;:
-- backup
+- backup (save and restore)
 - clean-up
 - statistics
 - restart
