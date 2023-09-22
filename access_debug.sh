@@ -19,8 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
-echo "The script is compatible with Polyspace Access from R2020b to R2023a."
+echo "The script is compatible with Polyspace Access from R2020b to R2023b."
 echo "It is recommended to activate the debug mode of Polyspace Access before launching this script."
 echo "See https://www.mathworks.com/matlabcentral/answers/852070-how-can-i-get-debug-information-for-polyspace-access for more information."
 echo ""
@@ -59,6 +58,8 @@ if [ ! -f "$version_file" ]; then
 	exit 1;
 fi
 
+# main part
+
 version=$(awk '{print $1}' $version_file)
 
 if [[ $version < "R2022a" ]]; then
@@ -67,7 +68,17 @@ else
 	sql='docker exec -i polyspace-access-db-0-main psql -a -b -U postgres prs_data'
 fi
 
+get_json_field_value() {
+	local json="$1"
+	local field="$2"
+	local value
+	value=$(grep -m 1 -o "\"$field\": *\"[^\"]*\"" <<< "$json" | awk -F'"' '{print $4}')
+	echo "$value"
+}
+
 info() {
+	local db_volume="$1"
+
 	echo "Number of runs:"
 	$sql -t -c "SELECT COUNT(\"RunID\") FROM \"Result\".\"Run\""
 
@@ -80,18 +91,39 @@ info() {
 	echo "Information about the memory:"
 	free -h
 
-	echo "Information on the disk space:"
-	df -h /
-
+	echo
+	echo "Database actual location is: $db_volume"
+	echo
+	echo "Information on the database disk space"
+	df -h $db_volume
+	echo
 	echo "Information on the OS:"
 	uname -a
 }
+
+# read the settings.json
+json_content=$(<"$settings_file")
+
+# There are two fields dbVolume, we get the first one
+dbVolume=$(get_json_field_value "$json_content" "dbVolume")
+
+if [[ "$dbVolume" == /* ]]; then
+	# a folder
+	real_db_volume=$dbVolume
+else
+	# a volume
+	volume_inspect=$(sudo docker volume inspect $dbVolume)
+	real_db_volume=$(get_json_field_value "$volume_inspect" "Mountpoint")
+fi
+
+
+# export the collected data
 
 output_files=(info.txt tables.csv indexes.csv automations.csv containers_list.txt)
 
 echo "Getting information on the database..."
 
-info > "${output_files[0]}"
+info $real_db_volume  > "${output_files[0]}"
 $sql < get_tables.sql > "${output_files[1]}"
 $sql < get_indexes.sql > "${output_files[2]}"
 $sql < get_automations.sql > "${output_files[3]}"
