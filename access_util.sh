@@ -50,7 +50,7 @@ fi
 if [ $# -eq 1 ]; then
 	access_folder=$1
 else
-	access_folder= ".."
+	access_folder=".."
 fi
 
 version_file="$access_folder/VERSION"
