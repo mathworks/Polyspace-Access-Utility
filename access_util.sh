@@ -21,6 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+tool_version="1.1"
 
 ##########
 #  Init  #
@@ -39,12 +40,28 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if [ ! -f ../settings.json ]; then
+
+if [ ! -w . ]; then
+	echo "Error: current folder is not writable. Please set a write access to the current folder."
+	exit 1
+fi
+
+
+if [ $# -eq 1 ]; then
+	access_folder=$1
+else
+	access_folder= ".."
+fi
+
+version_file="$access_folder/VERSION"
+settings_file="$access_folder/settings.json"
+
+if [ ! -f "$settings_file" ]; then
 	echo "Error: settings.json cannot be found, this tool should be executed in a subfolder of the Polyspace Access installation folder"
 	exit 1
 fi
 
-if [ ! -f ../VERSION ]; then
+if [ ! -f "$version_file" ]; then
 	echo "Error: file VERSION cannot be found, cannot continue"
 	exit 1
 fi
@@ -58,12 +75,9 @@ if ! command -v whiptail &>/dev/null; then
 	exit 1
 fi
 
-# variable definitions
-
 logfile="log.txt"
-tool_version="1.0"
 
-version=$(awk '{print $1}' <../VERSION)
+version=$(awk '{print $1}' < $version_file)
 if [[ $version < "R2022a" ]]; then
 	db_main='polyspace-access-db-main'
 	etl_main='polyspace-access-etl-main'
@@ -76,14 +90,22 @@ fi
 sql="docker exec -i $db_main psql -a -b -U postgres prs_data"
 
 # get some variables
-storageDir=$(grep '"etlStorageDir"' ../settings.json | awk -F ':' '{print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
-databaseDir=$(grep '"dbVolume"' ../settings.json | awk -F ':' 'FNR==1 {print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
+storageDir=$(grep '"etlStorageDir"' $settings_file | awk -F ':' '{print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
+databaseDir=$(grep '"dbVolume"' $settings_file | awk -F ':' 'FNR==1 {print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
 mem_total_bytes=$(awk '/^Mem/ {printf $2}' <(free))
 mem_total=$(awk '/^Mem/ {printf $2}' <(free -h))
 
 ################
 #   Functions  #
 ################
+
+function get_json_field_value {
+	local json="$1"
+	local field="$2"
+	local value
+	value=$(grep -m 1 -o "\"$field\": *\"[^\"]*\"" <<< "$json" | awk -F'"' '{print $4}')
+	echo $value
+}
 
 function backup {
 
@@ -286,18 +308,25 @@ function delete_trash {
 		whiptail --msgbox "No project to delete" 10 30
 	else
 		if whiptail --scrolltext --yesno --defaultno "Confirm the deletion of the following projects:\n\n$toDelete" 20 50; then
-			output=$($sql <project_hierarchy.sql | grep 'ProjectsWaitingForDeletion/' | sed '/^\s*#/d;/^\s*$/d')
-			# create the output file
-			>cleanup.pscauto
-			IFS=$'\n'$'\r'
-			for line in $output; do
-				echo "delete_project \"$line\"" >>cleanup.pscauto
-			done
-			cat cleanup.pscauto >>"$logfile"
-			log "Copying pscauto to $storageDir"
-			cp cleanup.pscauto "$storageDir"
-			whiptail --msgbox "The deletion has been launched.\nThe projects will be deleted soon." 10 40
-			log "Deletion performed"
+
+			if [[ $version < "R2023b" ]]; then
+				output=$($sql <project_hierarchy.sql | grep 'ProjectsWaitingForDeletion/' | sed '/^\s*#/d;/^\s*$/d')
+				# create the output file
+				>cleanup.pscauto
+				IFS=$'\n'$'\r'
+				for line in $output; do
+					echo "delete_project \"$line\"" >>cleanup.pscauto
+				done
+				cat cleanup.pscauto >>"$logfile"
+				log "Copying pscauto to $storageDir"
+				cp cleanup.pscauto "$storageDir"
+				whiptail --msgbox "The deletion has been launched.\nThe projects will be deleted soon." 10 40
+				log "Deletion performed"
+			else
+				echo "Since R2023b, use the command"
+				echo " polyspace-access -delete-project ProjectsWaitingForDeletion -host ..."
+				echo "to delete all the projects in ProjectsWaitingForDeletion"
+			fi
 		fi
 	fi
 }
@@ -316,6 +345,22 @@ function show_info {
 	fs_size=$(awk 'FNR==2 {printf $2}' <(df -h /))
 	fs_use=$(awk 'FNR==2 {printf $5}' <(df -h /))
 
+	json_content=$(<"$settings_file")
+	dbVol=$(get_json_field_value "$json_content" "dbVolume")
+
+	is_volume=""
+	if [[ "$dbVol" == /* ]]; then
+		# a folder
+		db_volume=$dbVol
+	else
+		# a volume
+		is_volume="(volume name: $dbVol)"
+		volume_inspect=$(sudo docker volume inspect $dbVol)
+		db_volume=$(get_json_field_value "$volume_inspect" "Mountpoint")
+	fi
+
+	db_size=$(awk 'FNR==2 {printf $2}' <(df -h $db_volume))
+
 	text=(
 		"Number of runs: $number_runs
 Number of projects: $number_projects
@@ -326,12 +371,17 @@ Memory:
  Total: $mem_total
  Available: $mem_avail
  Free: $mem_free\n
+
+Database location: $db_volume
+$is_volume
+Disk space on the database volume: $db_size
+
 Disk space on / :
  Total: $fs_size
  Use: $fs_use"
 	)
 
-	whiptail --title "Status" --msgbox "$text" 25 50
+	whiptail --title "Status" --msgbox "$text" 28 55
 
 }
 
@@ -424,7 +474,7 @@ function create_debug_info {
 	else
 		{
 			echo -e "XXX\n50\nGenerating debug files... \nXXX"
-			./access_debug.sh .. >/dev/null 2>&1
+			./access_debug.sh $access_folder >$logfile 2>&1
 			echo -e "XXX\n99\nGenerating debug files... Done\nXXX"
 		} | whiptail --title "Generating debug files" --gauge "Please wait" 6 60 0
 		whiptail --msgbox "File all_info.zip generated." 10 50
