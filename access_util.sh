@@ -21,7 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-tool_version="1.1"
+tool_version="1.2"
 
 ##########
 #  Init  #
