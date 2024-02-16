@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2023 The MathWorks, Inc.
+# Copyright (c) 2024 The MathWorks, Inc.
 # All Rights Reserved.
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,7 +21,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-tool_version="1.2"
+tool_version="1.3"
+copyright="(c) MathWorks Inc. 2024"
 
 ##########
 #  Init  #
@@ -149,13 +150,13 @@ function backup {
 				sleep 1
 
 			} > >(whiptail --title "Creating backup file" --gauge "Please wait" 6 50 0)
-			log "Backup complete"
-			log "Final status: $global_status_code"
-			if [ $global_status_code -eq 0 ]; then
-				whiptail --msgbox "Backup complete" 10 30
-			else
-				whiptail --msgbox "Error occured during backup. See the file log.txt" 10 30
-			fi
+		log "Backup complete"
+		log "Final status: $global_status_code"
+		if [ $global_status_code -eq 0 ]; then
+			whiptail --msgbox "Backup complete" 10 30
+		else
+			whiptail --msgbox "Error occured during backup. See the file log.txt" 10 30
+		fi
 
 		fi
 	fi
@@ -234,15 +235,15 @@ function restore_backup {
 					echo -e "XXX\n100\nRestoring the database backup... Done\nXXX"
 					sleep 1
 				} > >(whiptail --title "Restoring the backup file" --gauge "Please wait" 6 50 0)
-				log "Restore operation complete"
-				log "Final status: $global_status_code"
-				if [ $global_status_code -eq 0 ]; then
-					whiptail --msgbox "Backup restored. Restart the Cluster Admin and Restart the Apps" 10 30
-				else
-					whiptail --msgbox "Error occured during restore. See the file log.txt" 10 30
-				fi
+			log "Restore operation complete"
+			log "Final status: $global_status_code"
+			if [ $global_status_code -eq 0 ]; then
+				whiptail --msgbox "Backup restored. Restart the Cluster Admin and Restart the Apps" 10 30
 			else
-				whiptail --title "Wrong backupfile" --msgbox "Backup file $backup_file does not exist. Cancelling backup"
+				whiptail --msgbox "Error occured during restore. See the file log.txt" 10 30
+			fi
+		else
+			whiptail --title "Wrong backupfile" --msgbox "Backup file $backup_file does not exist. Cancelling backup"
 			fi # if backup file exists
 		fi  # if backup confirmed
 	fi
@@ -287,13 +288,13 @@ function full_vacuum {
 			sleep 1
 
 		} > >(whiptail --title "Full vacuum" --gauge "Please wait" 6 50 0)
-		log "Vacuum complete"
-		log "Final status: $global_status_code"
-		if [ $global_status_code -eq 0 ]; then
-			whiptail --msgbox "Vacuum complete" 10 30
-		else
-			whiptail --msgbox "Error occured during vacuum. See the file log.txt" 10 30
-		fi
+	log "Vacuum complete"
+	log "Final status: $global_status_code"
+	if [ $global_status_code -eq 0 ]; then
+		whiptail --msgbox "Vacuum complete" 10 30
+	else
+		whiptail --msgbox "Error occured during vacuum. See the file log.txt" 10 30
+	fi
 
 	fi
 
@@ -307,7 +308,7 @@ function delete_trash {
 	if [ $number_ToDelete -eq 0 ]; then
 		whiptail --msgbox "No project to delete" 10 30
 	else
-		if whiptail --scrolltext --yesno --defaultno "Confirm the deletion of the following projects:\n\n$toDelete" 20 50; then
+		if whiptail --scrolltext --yesno --defaultno "Confirm the deletion of $number_ToDelete projects" 20 50; then
 
 			if [[ $version < "R2023b" ]]; then
 				output=$($sql <project_hierarchy.sql | grep 'ProjectsWaitingForDeletion/' | sed '/^\s*#/d;/^\s*$/d')
@@ -323,6 +324,9 @@ function delete_trash {
 				whiptail --msgbox "The deletion has been launched.\nThe projects will be deleted soon." 10 40
 				log "Deletion performed"
 			else
+				whiptail --msgbox "Since R2023b, please use the command\n polyspace-access -delete-project ProjectsWaitingForDeletion -host...\nto delete all the projects in ProjectsWaitingForDeletion" 10 80
+				echo "   "
+				echo "******************************"
 				echo "Since R2023b, use the command"
 				echo " polyspace-access -delete-project ProjectsWaitingForDeletion -host ..."
 				echo "to delete all the projects in ProjectsWaitingForDeletion"
@@ -363,22 +367,22 @@ function show_info {
 
 	text=(
 		"Number of runs: $number_runs
-Number of projects: $number_projects
-Size of the database: $db_size\n
-Number of running uploads: $number_running
-Number of failed uploads: $number_failed\n
-Memory:
- Total: $mem_total
- Available: $mem_avail
- Free: $mem_free\n
+		Number of projects: $number_projects
+		Size of the database: $db_size\n
+		Number of running uploads: $number_running
+		Number of failed uploads: $number_failed\n
+		Memory:
+		Total: $mem_total
+		Available: $mem_avail
+		Free: $mem_free\n
 
-Database location: $db_volume
-$is_volume
-Disk space on the database volume: $db_size
+		Database location: $db_volume
+		$is_volume
+		Disk space on the database volume: $db_size
 
-Disk space on / :
- Total: $fs_size
- Use: $fs_use"
+		Disk space on / :
+		Total: $fs_size
+		Use: $fs_use"
 	)
 
 	whiptail --title "Status" --msgbox "$text" 28 55
@@ -406,20 +410,20 @@ function restart_containers {
 					polyspace-access \
 					issuetracker \
 					usermanager >/dev/null 2>&1
-			else
-				docker stop gateway \
-					polyspace-access-web-server-0-main \
-					polyspace-access-etl-0-main \
-					polyspace-access-db-0-main \
-					polyspace-access-download-0-main \
-					issuetracker-server-0-main \
-					issuetracker-ui-0-main \
-					usermanager-server-0-main \
-					usermanager-ui-0-main \
-					usermanager-db-0-main \
-					polyspace-access \
-					issuetracker \
-					usermanager >/dev/null 2>&1
+								else
+									docker stop gateway \
+										polyspace-access-web-server-0-main \
+										polyspace-access-etl-0-main \
+										polyspace-access-db-0-main \
+										polyspace-access-download-0-main \
+										issuetracker-server-0-main \
+										issuetracker-ui-0-main \
+										usermanager-server-0-main \
+										usermanager-ui-0-main \
+										usermanager-db-0-main \
+										polyspace-access \
+										issuetracker \
+										usermanager >/dev/null 2>&1
 			fi
 
 			echo -e "XXX\n50\nStopping the containers... Done.\nXXX"
@@ -440,28 +444,28 @@ function restart_containers {
 					polyspace-access-etl-main \
 					polyspace-access-web-server-main \
 					gateway >/dev/null 2>&1
-			else
-				docker start usermanager \
-					issuetracker \
-					polyspace-access \
-					usermanager-db-0-main \
-					usermanager-ui-0-main \
-					usermanager-server-0-main \
-					issuetracker-ui-0-main \
-					issuetracker-server-0-main \
-					polyspace-access-download-0-main polyspace-access-db-0-main \
-					polyspace-access-etl-0-main \
-					polyspace-access-web-server-0-main \
-					gateway >/dev/null 2>&1
+								else
+									docker start usermanager \
+										issuetracker \
+										polyspace-access \
+										usermanager-db-0-main \
+										usermanager-ui-0-main \
+										usermanager-server-0-main \
+										issuetracker-ui-0-main \
+										issuetracker-server-0-main \
+										polyspace-access-download-0-main polyspace-access-db-0-main \
+										polyspace-access-etl-0-main \
+										polyspace-access-web-server-0-main \
+										gateway >/dev/null 2>&1
 			fi
 
 			echo -e "XXX\n100\nStarting the containers... Done.\nXXX"
 			sleep 1
 		} > >(whiptail --title "Restarting..." --gauge "Please wait" 6 50 0)
 
-		whiptail --msgbox "Restart complete" 10 30
+	whiptail --msgbox "Restart complete" 10 30
 
-		log "Done"
+	log "Done"
 	fi
 }
 
@@ -477,7 +481,7 @@ function create_debug_info {
 			./access_debug.sh $access_folder >$logfile 2>&1
 			echo -e "XXX\n99\nGenerating debug files... Done\nXXX"
 		} | whiptail --title "Generating debug files" --gauge "Please wait" 6 60 0
-		whiptail --msgbox "File all_info.zip generated." 10 50
+	whiptail --msgbox "File generated." 10 50
 	fi
 
 	log "Log files created"
@@ -502,8 +506,10 @@ if [ "$mem_total_bytes" -lt 32505856 ]; then
 fi
 
 while [ 1 ]; do
-	choice=$(
-		whiptail --title "Polyspace Access Utility $tool_version (c) MathWorks Inc. 2023" --nocancel --menu "Choose a command" 16 80 9 \
+
+	if [[ $version < "R2023b" ]]; then
+		choice=$(
+		whiptail --title "Polyspace Access Utility $tool_version $copyright" --nocancel --menu "Choose a command" 16 80 9 \
 			"1" "Launch backup" \
 			"2" "Restore backup" \
 			"3" "Full vacuum" \
@@ -512,41 +518,71 @@ while [ 1 ]; do
 			"6" "Server statistics" \
 			"7" "Create debug log files" \
 			"8" "Exit" 3>&2 2>&1 1>&3
-	)
+		)
 
-	case $choice in
-	1)
-		backup
-		;;
+		case $choice in
+			1)
+				backup
+				;;
+			2)
+				restore_backup
+				;;
+			3)
+				full_vacuum
+				;;
+			4)
+				restart_containers
+				;;
+			5)
+				delete_trash
+				;;
+			6)
+				show_info
+				;;
+			7)
+				create_debug_info
+				;;
+			8)
+				echo "-- End of entry --" >>$logfile
+				exit
+				;;
+		esac
+	else
+		choice=$(
+		whiptail --title "Polyspace Access Utility $tool_version $copyright" --nocancel --menu "Choose a command" 16 80 9 \
+			"1" "Launch backup" \
+			"2" "Restore backup" \
+			"3" "Full vacuum" \
+			"4" "Restart Docker containers" \
+			"5" "Server statistics" \
+			"6" "Create debug log files" \
+			"7" "Exit" 3>&2 2>&1 1>&3
+		)
 
-	2)
-		restore_backup
-		;;
-
-	3)
-		full_vacuum
-		;;
-
-	4)
-		restart_containers
-		;;
-
-	5)
-		delete_trash
-		;;
-
-	6)
-		show_info
-		;;
-
-	7)
-		create_debug_info
-		;;
-
-	8)
-		echo "-- End of entry --" >>$logfile
-		exit
-		;;
-	esac
+		case $choice in
+			1)
+				backup
+				;;
+			2)
+				restore_backup
+				;;
+			3)
+				full_vacuum
+				;;
+			4)
+				restart_containers
+				;;
+			5)
+				show_info
+				;;
+			6)
+				create_debug_info
+				;;
+			7)
+				echo "-- End of entry --" >>$logfile
+				exit
+				;;
+		esac
+	fi
 done
 
