@@ -7,7 +7,7 @@ Polyspace Access Utility is a bash script for dealing with basic operations when
 - restart
 - debug
 
-The script is compatible with Polyspace Access from R2022a to R2023b.
+The script is compatible with Polyspace Access from R2022a to R2024a.
 
 # Installation
 
@@ -45,4 +45,4 @@ The license for Polyspace Access Utility is available in the LICENSE.TXT file in
 
 [MATLAB Central](https://www.mathworks.com/matlabcentral)
 
-Copyright 2023 The MathWorks, Inc.
+Copyright 2024 The MathWorks, Inc.
