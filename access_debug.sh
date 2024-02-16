@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-echo "The script is compatible with Polyspace Access from R2020b to R2023b."
+echo "The script is compatible with Polyspace Access from R2020b to R2024a."
 echo "It is recommended to activate the debug mode of Polyspace Access before launching this script."
 echo "See https://www.mathworks.com/matlabcentral/answers/852070-how-can-i-get-debug-information-for-polyspace-access for more information."
 echo ""
@@ -61,6 +61,7 @@ fi
 # main part
 
 version=$(awk '{print $1}' $version_file)
+zip_name="all_info_$(date +%d_%m_%Y).zip"
 
 if [[ $version < "R2022a" ]]; then
 	sql='docker exec -i polyspace-access-db-main psql -a -b -U postgres prs_data'
@@ -132,8 +133,8 @@ echo "Getting information on the Docker containers"
 
 docker container ls > "${output_files[4]}"
 
-rm -f all_info.zip
-zip -m all_info.zip "${output_files[@]}" 
+rm -f all_info*.zip
+zip -m $zip_name "${output_files[@]}" 
 
 if [[ $version < "R2022a" ]]; then
 
@@ -186,7 +187,7 @@ else
 
 fi
 
-zip -rm all_info.zip *.logs.txt
+zip -rm $zip_name *.logs.txt
 
 echo "Getting information files"
 # Adding two other files useful to know the configuration of Polyspace Access
@@ -198,9 +199,9 @@ sed -i 's/"dbPassword":[[:space:]]*"[^"]*"/"dbPassword":"xxx"/g' settings_.json
 sed -i 's/"password":[[:space:]]*"[^"]*"/"password":"xxxxxxx"/g' settings_.json
 sed -i 's/"adminInitialPassword":[[:space:]]*"[^"]*"/"adminInitialPassword":"xxx"/g' settings_.json
 sed -i 's/"ldapPassword":[[:space:]]*"[^"]*"/"ldapPassword":"xxx"/g' settings_.json
-zip -m all_info.zip settings_.json
+zip -m $zip_name settings_.json
 
-zip -j all_info.zip $version_file
+zip -j $zip_name $version_file
 
-echo "Ouput file all_info.zip generated. Please send this file to MathWorks."
+echo "Ouput file $zip_name generated. Please send this file to MathWorks."
 echo ""
