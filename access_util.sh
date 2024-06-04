@@ -90,6 +90,7 @@ else
 fi
 sql="docker exec -i $db_main psql -a -b -U postgres prs_data"
 
+
 # get some variables
 storageDir=$(grep '"etlStorageDir"' $settings_file | awk -F ':' '{print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
 databaseDir=$(grep '"dbVolume"' $settings_file | awk -F ':' 'FNR==1 {print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
@@ -354,12 +355,10 @@ function show_info {
 
 	is_volume=""
 	if [[ "$dbVol" == /* ]]; then
-	echo "A folder"
 		# a folder
 		db_volume=$dbVol
 	else
 		# a volume
-		echo "A volume"
 		is_volume="(volume name: $dbVol)"
 		volume_inspect=$(sudo docker volume inspect $dbVol)
 		db_volume=$(get_json_field_value "$volume_inspect" "Mountpoint")
@@ -501,6 +500,9 @@ function log {
 #############
 
 echo "-- New log entry --" >>$logfile
+echo "Linux release: $(uname -v)" | tee -a $logfile
+echo "Polyspace Access version: $version" | tee -a $logfile
+echo "A log file named log.txt has been created for debugging purposes."
 log "Version of the tool: $tool_version"
 log "Version of Polyspace Access: $version"
 log "Memory: $mem_total"
