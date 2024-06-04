@@ -21,7 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-tool_version="1.3"
+tool_version="1.4"
 copyright="(c) MathWorks Inc. 2024"
 
 ##########
@@ -35,8 +35,8 @@ if ! command -v docker &>/dev/null; then
 	exit
 fi
 
-docker version &>/dev/null 2>&1
-if [ $? -ne 0 ]; then
+#docker version &>/dev/null 2>&1
+if [ "$EUID" -ne 0 ]; then
 	echo "Error: Docker commands cannot be launched, please launch this command in sudo (admin) mode: sudo ./access_util.sh"
 	exit 1
 fi
@@ -93,8 +93,8 @@ sql="docker exec -i $db_main psql -a -b -U postgres prs_data"
 # get some variables
 storageDir=$(grep '"etlStorageDir"' $settings_file | awk -F ':' '{print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
 databaseDir=$(grep '"dbVolume"' $settings_file | awk -F ':' 'FNR==1 {print $2}' | sed -e 's/"//g' -e 's/,//' -e 's/^[ \t]*//')
-mem_total_bytes=$(awk '/^Mem/ {printf $2}' <(free))
-mem_total=$(awk '/^Mem/ {printf $2}' <(free -h))
+mem_total_bytes=$(awk 'NR==2 {printf $2}' <(free))
+mem_total=$(awk 'NR==2 {printf $2}' <(free -h))
 
 ################
 #   Functions  #
@@ -339,8 +339,8 @@ function show_info {
 	number_runs=$($sql -t -c "SELECT COUNT(\"RunID\") FROM \"Result\".\"Run\"" | sed 's/ //g')
 	number_projects=$($sql -t -c "SELECT COUNT(\"DefinitionID\") FROM \"Project\".\"Definition\"" | sed 's/ //g')
 	db_size=$($sql -t -c "SELECT pg_size_pretty(pg_database_size('prs_data'))" | sed 's/ //g')
-	mem_avail=$(awk '/^Mem/ {printf $7}' <(free -h))
-	mem_free=$(awk '/^Mem/ {printf $4}' <(free -h))
+	mem_avail=$(awk 'NR==2 {printf $7}' <(free -h))
+	mem_free=$(awk 'NR==2 {printf $4}' <(free -h))
 
 	number_failed=$($sql -t -c "SELECT \"RefRun\", \"StartTime\", \"EndTime\", AGE(\"EndTime\", \"StartTime\") AS \"UploadDuration\" FROM \"Status\".\"Etl\" WHERE \"Status\" = 'Failed'" | sed '/^\s*#/d;/^\s*$/d' | wc -l)
 
@@ -354,35 +354,39 @@ function show_info {
 
 	is_volume=""
 	if [[ "$dbVol" == /* ]]; then
+	echo "A folder"
 		# a folder
 		db_volume=$dbVol
 	else
 		# a volume
+		echo "A volume"
 		is_volume="(volume name: $dbVol)"
 		volume_inspect=$(sudo docker volume inspect $dbVol)
 		db_volume=$(get_json_field_value "$volume_inspect" "Mountpoint")
 	fi
 
-	db_size=$(awk 'FNR==2 {printf $2}' <(df -h $db_volume))
+	db_space=$(awk 'FNR==2 {printf $2}' <(df -h $db_volume))
 
 	text=(
-		"Number of runs: $number_runs
-		Number of projects: $number_projects
-		Size of the database: $db_size\n
-		Number of running uploads: $number_running
-		Number of failed uploads: $number_failed\n
-		Memory:
-		Total: $mem_total
-		Available: $mem_avail
-		Free: $mem_free\n
+		"
+Number of runs: $number_runs
+Number of projects: $number_projects
+Size of the database: $db_size\n
+Number of running uploads: $number_running
+Number of failed uploads: $number_failed
 
-		Database location: $db_volume
-		$is_volume
-		Disk space on the database volume: $db_size
+Memory:
+	Total: $mem_total
+	Available: $mem_avail
+	Free: $mem_free
 
-		Disk space on / :
-		Total: $fs_size
-		Use: $fs_use"
+Database location: $db_volume
+$is_volume
+
+Disk space on the database volume: $db_space
+Disk space on / :
+	Total: $fs_size
+	Use: $fs_use"
 	)
 
 	whiptail --title "Status" --msgbox "$text" 28 55
@@ -410,20 +414,20 @@ function restart_containers {
 					polyspace-access \
 					issuetracker \
 					usermanager >/dev/null 2>&1
-								else
-									docker stop gateway \
-										polyspace-access-web-server-0-main \
-										polyspace-access-etl-0-main \
-										polyspace-access-db-0-main \
-										polyspace-access-download-0-main \
-										issuetracker-server-0-main \
-										issuetracker-ui-0-main \
-										usermanager-server-0-main \
-										usermanager-ui-0-main \
-										usermanager-db-0-main \
-										polyspace-access \
-										issuetracker \
-										usermanager >/dev/null 2>&1
+			else
+				docker stop gateway \
+					polyspace-access-web-server-0-main \
+					polyspace-access-etl-0-main \
+					polyspace-access-db-0-main \
+					polyspace-access-download-0-main \
+					issuetracker-server-0-main \
+					issuetracker-ui-0-main \
+					usermanager-server-0-main \
+					usermanager-ui-0-main \
+					usermanager-db-0-main \
+					polyspace-access \
+					issuetracker \
+					usermanager >/dev/null 2>&1
 			fi
 
 			echo -e "XXX\n50\nStopping the containers... Done.\nXXX"
@@ -444,19 +448,19 @@ function restart_containers {
 					polyspace-access-etl-main \
 					polyspace-access-web-server-main \
 					gateway >/dev/null 2>&1
-								else
-									docker start usermanager \
-										issuetracker \
-										polyspace-access \
-										usermanager-db-0-main \
-										usermanager-ui-0-main \
-										usermanager-server-0-main \
-										issuetracker-ui-0-main \
-										issuetracker-server-0-main \
-										polyspace-access-download-0-main polyspace-access-db-0-main \
-										polyspace-access-etl-0-main \
-										polyspace-access-web-server-0-main \
-										gateway >/dev/null 2>&1
+			else
+				docker start usermanager \
+					issuetracker \
+					polyspace-access \
+					usermanager-db-0-main \
+					usermanager-ui-0-main \
+					usermanager-server-0-main \
+					issuetracker-ui-0-main \
+					issuetracker-server-0-main \
+					polyspace-access-download-0-main polyspace-access-db-0-main \
+					polyspace-access-etl-0-main \
+					polyspace-access-web-server-0-main \
+					gateway >/dev/null 2>&1
 			fi
 
 			echo -e "XXX\n100\nStarting the containers... Done.\nXXX"
@@ -585,4 +589,3 @@ while [ 1 ]; do
 		esac
 	fi
 done
-
